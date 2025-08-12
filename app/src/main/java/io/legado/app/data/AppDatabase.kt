@@ -154,6 +154,19 @@ abstract class AppDatabase : RoomDatabase() {
                     where not exists (select * from book_groups where groupId = ${BookGroup.IdAll})
                 """.trimIndent()
                 db.execSQL(insertBookGroupAllSql)
+                val insertBookGroupRasingSql = """
+                    insert into book_groups(groupId, groupName, 'order', show) 
+                    select ${BookGroup.IdRasing}, '养书', -11, 1
+                    where not exists (select * from book_groups where groupId = ${BookGroup.IdRasing})
+                """.trimIndent()
+                db.execSQL(insertBookGroupRasingSql)
+                //todo
+                val insertBookGroupOnlineSql = """
+                    insert into book_groups(groupId, groupName, 'order', show) 
+                    select ${BookGroup.IdOnline}, '在线', -12,  1
+                    where not exists (select * from book_groups where groupId = ${BookGroup.IdOnline})
+                """.trimIndent()
+                db.execSQL(insertBookGroupOnlineSql)
                 @Language("sql")
                 val insertBookGroupLocalSql = """
                     insert into book_groups(groupId, groupName, 'order', enableRefresh, show) 

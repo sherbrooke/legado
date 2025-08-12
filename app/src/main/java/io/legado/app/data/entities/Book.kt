@@ -111,7 +111,9 @@ data class Book(
     //书源排序
     @ColumnInfo(defaultValue = "0")
     var originOrder: Int = 0,
-    // 自定义书籍变量信息(用于书源规则检索书籍信息)
+    @ColumnInfo(defaultValue = "0")
+    var rasing: Int = 0,
+// 自定义书籍变量信息(用于书源规则检索书籍信息)
     override var variable: String? = null,
     //阅读设置
     var readConfig: ReadConfig? = null,

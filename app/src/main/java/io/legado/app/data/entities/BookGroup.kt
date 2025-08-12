@@ -23,7 +23,8 @@ data class BookGroup(
     @ColumnInfo(defaultValue = "1")
     var show: Boolean = true,
     @ColumnInfo(defaultValue = "-1")
-    var bookSort: Int = -1
+    var bookSort: Int = -1,
+//            public static final long IdRasing = -25;
 ) : Parcelable {
 
     companion object {
@@ -34,6 +35,8 @@ data class BookGroup(
         const val IdNetNone = -4L
         const val IdLocalNone = -5L
         const val IdError = -11L
+        const val IdRasing = -25L
+        const val IdOnline = -26L
     }
 
     fun getManageName(context: Context): String {
@@ -44,6 +47,8 @@ data class BookGroup(
             IdNetNone -> "$groupName(${context.getString(R.string.net_no_group)})"
             IdLocalNone -> "$groupName(${context.getString(R.string.local_no_group)})"
             IdError -> "$groupName(${context.getString(R.string.update_book_fail)})"
+            IdRasing -> "$groupName(${context.getString(R.string.rasing_book)})"
+            IdOnline -> "$groupName(${context.getString(R.string.rasing_book)})"
             else -> groupName
         }
     }

@@ -23,9 +23,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        //原仓库
+
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -39,7 +37,9 @@ dependencyResolutionManagement {
                 includeGroupByRegex("com\\.github.*")
             }
         }
-
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        //原仓库
         mavenCentral()
 
         //镜像仓库,无法连接源仓库自行启用镜像仓库,不要提交修改

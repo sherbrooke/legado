@@ -26,6 +26,8 @@ interface BookDao {
             BookGroup.IdNetNone -> flowNetNoGroup()
             BookGroup.IdLocalNone -> flowLocalNoGroup()
             BookGroup.IdError -> flowUpdateError()
+            BookGroup.IdRasing -> flowRasing()
+            BookGroup.IdOnline -> flowOnline()
             else -> flowByUserGroup(groupId)
         }.map { list ->
             list.filterNot { it.isNotShelf }
@@ -50,6 +52,12 @@ interface BookDao {
 
     @Query("SELECT * FROM books WHERE type & ${BookType.local} > 0")
     fun flowLocal(): Flow<List<Book>>
+
+    @Query("SELECT * FROM books WHERE rasing > 0")
+    fun flowRasing(): Flow<List<Book>>
+
+    @Query("SELECT * FROM books WHERE type & ${BookType.local} <= 0 and type & ${BookType.audio} <= 0 and rasing <= 0 order by durChapterTime desc")
+    fun flowOnline(): Flow<List<Book>>
 
     @Query(
         """

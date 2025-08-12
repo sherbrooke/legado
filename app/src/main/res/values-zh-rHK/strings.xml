@@ -1074,6 +1074,8 @@
     <string name="tip_divider_color">分隔线颜色</string>
     <string name="same_title_removed">移除重复标题</string>
     <string name="update_book_fail">更新失败</string>
+    <string name="rasing_book">养书</string>
+    <string name="online">在线</string>
     <string name="notification_permission_rationale">阅读需要发送通知来显示朗读控制和下载进度</string>
     <string name="webdav_after_local_restore_confirm">webDav书源比本地新,是否恢复</string>
     <string name="c_whitelist">白名单(contentWhitelist)</string>
@@ -1210,4 +1212,5 @@
     <string name="manga_color_filter">滤镜</string>
     <string name="hide_manga_title">隐藏漫画列表标题</string>
     <string name="refresh_explore">刷新发现</string>
+    <string name="switch_rasing">切换养书</string>
 </resources>

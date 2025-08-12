@@ -59,6 +59,11 @@
         android:title="@string/allow_update"
         android:checkable="true"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_is_Rasing"
+        android:title="@string/switch_rasing"
+        android:checkable="true"
+        app:showAsAction="never" />
 
     <item
         android:id="@+id/menu_split_long_chapter"

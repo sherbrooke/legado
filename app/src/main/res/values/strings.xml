@@ -1084,6 +1084,8 @@
     <string name="tip_divider_color">Divider color</string>
     <string name="same_title_removed">Remove duplicate title</string>
     <string name="update_book_fail">Update failed</string>
+    <string name="rasing_book">Rasing Book</string>
+    <string name="online">online</string>
     <string name="notification_permission_rationale">Reading requires sending notifications to show reading control and download progress</string>
     <string name="webdav_after_local_restore_confirm">The webDav book source is newer than the local one, whether to restore it or not</string>
     <string name="c_whitelist">白名单(contentWhitelist)</string>
@@ -1218,4 +1220,5 @@
     <string name="manga_color_filter">滤镜</string>
     <string name="hide_manga_title">隐藏漫画列表标题</string>
     <string name="refresh_explore">刷新发现</string>
+    <string name="switch_rasing">switch rasing</string>
 </resources>

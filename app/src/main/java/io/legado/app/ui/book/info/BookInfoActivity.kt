@@ -80,6 +80,7 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+
 class BookInfoActivity :
     VMBaseActivity<ActivityBookInfoBinding, BookInfoViewModel>(toolBarTheme = Theme.Dark),
     GroupSelectDialog.CallBack,
@@ -180,6 +181,14 @@ class BookInfoActivity :
     }
 
     override fun onMenuOpened(featureId: Int, menu: Menu): Boolean {
+        val findItem = menu.findItem(R.id.menu_is_Rasing)
+        if (findItem != null) {
+            val value = viewModel.bookData.value
+            findItem.setChecked(!(value != null && value.rasing == 0))
+        }
+        val findItem2 = menu.findItem(R.id.menu_is_Rasing)
+        findItem2?.setVisible(viewModel.inBookshelf)
+
         menu.findItem(R.id.menu_can_update)?.isChecked =
             viewModel.bookData.value?.canUpdate ?: true
         menu.findItem(R.id.menu_split_long_chapter)?.isChecked =
@@ -252,7 +261,21 @@ class BookInfoActivity :
                     }
                 }
             }
-
+            R.id.menu_is_Rasing -> {
+                viewModel.getBook()?.let {
+                    if (it != null) {
+                        if (it.rasing == 0) {
+                            it.rasing = 1
+                        } else {
+                            it.rasing = 0
+                        }
+                    }
+//                    it.canUpdate = !it.canUpdate
+                    if (viewModel.inBookshelf) {
+                        viewModel.saveBook(it)
+                    }
+                }
+            }
             R.id.menu_clear_cache -> viewModel.clearCache()
             R.id.menu_log -> showDialogFragment<AppLogDialog>()
             R.id.menu_split_long_chapter -> {
