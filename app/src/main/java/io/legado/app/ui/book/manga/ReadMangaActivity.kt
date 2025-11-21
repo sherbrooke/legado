@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.Looper
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
@@ -43,6 +42,7 @@ import io.legado.app.ui.book.changesource.ChangeBookSourceDialog
 import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.book.manga.config.MangaColorFilterConfig
 import io.legado.app.ui.book.manga.config.MangaColorFilterDialog
+import io.legado.app.ui.book.manga.config.MangaEpaperDialog
 import io.legado.app.ui.book.manga.config.MangaFooterConfig
 import io.legado.app.ui.book.manga.config.MangaFooterSettingDialog
 import io.legado.app.ui.book.manga.entities.BaseMangaPage
@@ -78,7 +78,7 @@ import kotlin.math.ceil
 
 class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewModel>(),
     ReadManga.Callback, ChangeBookSourceDialog.CallBack, MangaMenu.CallBack,
-    MangaColorFilterDialog.Callback, ScrollTimer.ScrollCallback {
+    MangaColorFilterDialog.Callback, ScrollTimer.ScrollCallback, MangaEpaperDialog.Callback {
 
     private val mLayoutManager by lazy {
         MangaLayoutManager(this)
@@ -163,6 +163,7 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
             binding.llRetry.isGone = true
             ReadManga.loadOrUpContent()
         }
+        binding.pbLoading.isVisible = !AppConfig.isEInkMode
         mAdapter.addFooterView {
             ViewLoadMoreBinding.bind(loadMoreView)
         }
@@ -192,6 +193,8 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
                 ?: MangaColorFilterConfig()
         mAdapter.run {
             setMangaImageColorFilter(mangaColorFilter)
+            enableMangaEInk(AppConfig.enableMangaEInk, AppConfig.mangaEInkThreshold)
+            enableGray(AppConfig.enableMangaGray)
         }
         setHorizontalScroll(AppConfig.enableMangaHorizontalScroll)
         binding.recyclerView.run {
@@ -244,10 +247,7 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
 
     override fun onPostCreate(savedInstanceState: Bundle?) {
         super.onPostCreate(savedInstanceState)
-        Looper.myQueue().addIdleHandler {
-            viewModel.initData(intent)
-            false
-        }
+        viewModel.initData(intent)
         justInitData = true
     }
 
@@ -542,6 +542,7 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
             R.id.menu_enable_horizontal_scroll -> {
                 item.isChecked = !item.isChecked
                 AppConfig.enableMangaHorizontalScroll = item.isChecked
+                mMenu?.findItem(R.id.menu_disable_horizontal_animation)?.isVisible = item.isChecked
                 setHorizontalScroll(item.isChecked)
                 mAdapter.notifyDataSetChanged()
             }
@@ -570,6 +571,38 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
                 item.isChecked = !item.isChecked
                 AppConfig.hideMangaTitle = item.isChecked
                 ReadManga.loadContent()
+            }
+
+            R.id.menu_epaper_manga -> {
+                item.isChecked = !item.isChecked
+                AppConfig.enableMangaEInk = item.isChecked
+                mMenu?.findItem(R.id.menu_gray_manga)?.isChecked = false
+                AppConfig.enableMangaGray = false
+                mMenu?.findItem(R.id.menu_epaper_manga_setting)?.isVisible = item.isChecked
+                mAdapter.enableMangaEInk(item.isChecked, AppConfig.mangaEInkThreshold)
+            }
+
+            R.id.menu_epaper_manga_setting -> {
+                showDialogFragment(MangaEpaperDialog())
+            }
+
+            R.id.menu_disable_horizontal_animation -> {
+                item.isChecked = !item.isChecked
+                AppConfig.disableHorizontalAnimator = item.isChecked
+                if (item.isChecked) {
+                    mPagerSnapHelper.attachToRecyclerView(null)
+                } else {
+                    mPagerSnapHelper.attachToRecyclerView(binding.recyclerView)
+                }
+            }
+
+            R.id.menu_gray_manga -> {
+                item.isChecked = !item.isChecked
+                AppConfig.enableMangaGray = item.isChecked
+                mMenu?.findItem(R.id.menu_epaper_manga)?.isChecked = false
+                AppConfig.enableMangaEInk = false
+                mMenu?.findItem(R.id.menu_epaper_manga_setting)?.isVisible = false
+                mAdapter.enableGray(item.isChecked)
             }
         }
         return super.onCompatOptionsItemSelected(item)
@@ -626,7 +659,11 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
         mAdapter.isHorizontal = enable
         if (enable) {
             if (!enableAutoScroll) {
-                mPagerSnapHelper.attachToRecyclerView(binding.recyclerView)
+                if (AppConfig.disableHorizontalAnimator) {
+                    mPagerSnapHelper.attachToRecyclerView(null)
+                } else {
+                    mPagerSnapHelper.attachToRecyclerView(binding.recyclerView)
+                }
             }
             mLayoutManager.orientation = LinearLayoutManager.HORIZONTAL
         } else {
@@ -646,7 +683,14 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
             getString(R.string.manga_auto_page_speed, AppConfig.mangaAutoPageSpeed)
         menu.findItem(R.id.menu_enable_horizontal_scroll).isChecked =
             AppConfig.enableMangaHorizontalScroll
-        menu.findItem(R.id.menu_hide_manga_title).isChecked = AppConfig.hideMangaTitle
+        menu.findItem(R.id.menu_epaper_manga).isChecked = AppConfig.enableMangaEInk
+        menu.findItem(R.id.menu_epaper_manga_setting).isVisible = AppConfig.enableMangaEInk
+        menu.findItem(R.id.menu_disable_horizontal_animation).run {
+            isVisible =
+                AppConfig.enableMangaHorizontalScroll
+            isChecked = AppConfig.disableHorizontalAnimator
+        }
+        menu.findItem(R.id.menu_gray_manga).isChecked = AppConfig.enableMangaGray
     }
 
     private fun setDisableMangaScale(disable: Boolean) {
@@ -784,5 +828,9 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
             }
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun updateEepaper(value: Int) {
+        mAdapter.updateThreshold(value)
     }
 }

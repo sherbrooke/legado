@@ -20,7 +20,6 @@ import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.ui.book.read.page.entities.TextLine
 import io.legado.app.ui.book.read.page.entities.TextPage
 import io.legado.app.ui.book.read.page.entities.column.ImageColumn
-import io.legado.app.ui.book.read.page.entities.column.ReviewColumn
 import io.legado.app.ui.book.read.page.entities.column.TextColumn
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.fastSum
@@ -31,10 +30,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import java.util.LinkedList
-import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
 
 class TextChapterLayout(
@@ -73,6 +72,10 @@ class TextChapterLayout(
     private val stringBuilder = StringBuilder()
 
     private val paragraphIndent = ReadBookConfig.paragraphIndent
+    private val titleMode = ReadBookConfig.titleMode
+    private val useZhLayout = ReadBookConfig.useZhLayout
+    private val isMiddleTitle = ReadBookConfig.isMiddleTitle
+    private val textFullJustify = ReadBookConfig.textFullJustify
 
     private var pendingTextPage = TextPage()
 
@@ -106,6 +109,8 @@ class TextChapterLayout(
         }.onError {
             exception = it
             onException(it)
+        }.onCancel {
+            channel.cancel()
         }.onFinally {
             isCompleted = true
         }
@@ -196,7 +201,7 @@ class TextChapterLayout(
         val isSingleImageStyle = imageStyle.equals(Book.imgStyleSingle, true)
         val isTextImageStyle = imageStyle.equals(Book.imgStyleText, true)
 
-        if (ReadBookConfig.titleMode != 2 || bookChapter.isVolume || contents.isEmpty()) {
+        if (titleMode != 2 || bookChapter.isVolume || contents.isEmpty()) {
             //标题非隐藏
             displayTitle.splitNotBlank("\n").forEach { text ->
                 setTypeText(
@@ -210,13 +215,13 @@ class TextChapterLayout(
                     emptyContent = contents.isEmpty(),
                     isVolumeTitle = bookChapter.isVolume
                 )
+                pendingTextPage.lines.last().isParagraphEnd = true
+                stringBuilder.append("\n")
             }
-            pendingTextPage.lines.last().isParagraphEnd = true
-            stringBuilder.append("\n")
             durY += titleBottomSpacing
 
             // 如果是单图模式且当前页有内容，强制分页
-            if (isSingleImageStyle && pendingTextPage.lines.isNotEmpty()) {
+            if (isSingleImageStyle && pendingTextPage.lines.isNotEmpty() && contents.isNotEmpty()) {
                 prepareNextPageIfNeed()
             }
         }
@@ -224,7 +229,7 @@ class TextChapterLayout(
         val sb = StringBuffer()
         var isSetTypedImage = false
         contents.forEach { content ->
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
             if (isTextImageStyle) {
                 //图片样式为文字嵌入类型
                 var text = content.replace(ChapterProvider.srcReplaceChar, "▣")
@@ -257,7 +262,7 @@ class TextChapterLayout(
                 if (content.contains("<img")) {
                     val matcher = AppPattern.imgPattern.matcher(content)
                     while (matcher.find()) {
-                        coroutineContext.ensureActive()
+                        currentCoroutineContext().ensureActive()
                         val text = content.substring(start, matcher.start())
                         if (text.isNotBlank()) {
                             setTypeText(
@@ -311,7 +316,7 @@ class TextChapterLayout(
             textPage.height += endPadding
         }
         textPage.text = stringBuilder.toString()
-        coroutineContext.ensureActive()
+        currentCoroutineContext().ensureActive()
         onPageCompleted()
         onCompleted()
     }
@@ -406,7 +411,7 @@ class TextChapterLayout(
     ) {
         val widthsArray = allocateFloatArray(text.length)
         textPaint.getTextWidthsCompat(text, widthsArray)
-        val layout = if (ReadBookConfig.useZhLayout) {
+        val layout = if (useZhLayout) {
             val (words, widths) = measureTextSplit(text, widthsArray)
             val indentSize = if (isFirstLine) paragraphIndent.length else 0
             ZhLayout(text, textPaint, visibleWidth, words, widths, indentSize)
@@ -471,7 +476,7 @@ class TextChapterLayout(
                     //标题x轴居中
                     val startX = if (
                         isTitle &&
-                        (ReadBookConfig.isMiddleTitle || emptyContent || isVolumeTitle
+                        (isMiddleTitle || emptyContent || isVolumeTitle
                                 || imageStyle?.uppercase() == Book.imgStyleSingle)
                     ) {
                         (visibleWidth - desiredWidth) / 2
@@ -487,7 +492,7 @@ class TextChapterLayout(
                 else -> {
                     if (
                         isTitle &&
-                        (ReadBookConfig.isMiddleTitle || emptyContent || isVolumeTitle
+                        (isMiddleTitle || emptyContent || isVolumeTitle
                                 || imageStyle?.uppercase() == Book.imgStyleSingle)
                     ) {
                         //标题居中
@@ -556,7 +561,7 @@ class TextChapterLayout(
         srcList: LinkedList<String>?
     ) {
         var x = 0f
-        if (!ReadBookConfig.textFullJustify) {
+        if (!textFullJustify) {
             addCharsToLineNatural(
                 book, absStartX, textLine, words,
                 x, true, textWidths, srcList
@@ -603,7 +608,7 @@ class TextChapterLayout(
         textWidths: List<Float>,
         srcList: LinkedList<String>?
     ) {
-        if (!ReadBookConfig.textFullJustify) {
+        if (!textFullJustify) {
             addCharsToLineNatural(
                 book, absStartX, textLine, words,
                 startX, false, textWidths, srcList
@@ -664,7 +669,7 @@ class TextChapterLayout(
         textWidths: List<Float>,
         srcList: LinkedList<String>?
     ) {
-        val indentLength = ReadBookConfig.paragraphIndent.length
+        val indentLength = paragraphIndent.length
         var x = startX
         textLine.startX = absStartX + startX
         for (index in words.indices) {
@@ -704,13 +709,13 @@ class TextChapterLayout(
                 )
             }
 
-            isLineEnd && char == ChapterProvider.reviewChar -> {
-                ReviewColumn(
-                    start = absStartX + xStart,
-                    end = absStartX + xEnd,
-                    count = 100
-                )
-            }
+//            isLineEnd && char == ChapterProvider.reviewChar -> {
+//                ReviewColumn(
+//                    start = absStartX + xStart,
+//                    end = absStartX + xEnd,
+//                    count = 100
+//                )
+//            }
 
             else -> {
                 TextColumn(
@@ -770,7 +775,7 @@ class TextChapterLayout(
                     textPage.leftLineSize = textPage.lineSize
                 }
                 textPage.text = stringBuilder.toString()
-                coroutineContext.ensureActive()
+                currentCoroutineContext().ensureActive()
                 onPageCompleted()
                 //新建页面
                 pendingTextPage = TextPage()

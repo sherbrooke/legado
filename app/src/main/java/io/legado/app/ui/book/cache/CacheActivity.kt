@@ -48,6 +48,7 @@ import io.legado.app.utils.flowWithLifecycleAndDatabaseChange
 import io.legado.app.utils.iconItemOnLongClick
 import io.legado.app.utils.isContentScheme
 import io.legado.app.utils.observeEvent
+import io.legado.app.utils.setIconCompat
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.startService
 import io.legado.app.utils.toastOnUi
@@ -171,7 +172,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
         when (item.itemId) {
             R.id.menu_download,
             R.id.menu_download_after -> {
-                if (!CacheBook.isRun) {
+                if (!CacheBook.isRun) sureCacheBook {
                     adapter.getItems().forEach { book ->
                         CacheBook.start(
                             this@CacheActivity,
@@ -186,7 +187,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
             }
 
             R.id.menu_download_all -> {
-                if (!CacheBook.isRun) {
+                if (!CacheBook.isRun) sureCacheBook {
                     adapter.getItems().forEach { book ->
                         CacheBook.start(
                             this@CacheActivity,
@@ -301,13 +302,13 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
         observeEvent<String>(EventBus.UP_DOWNLOAD) {
             if (!CacheBook.isRun) {
                 menu?.findItem(R.id.menu_download)?.let { item ->
-                    item.setIcon(R.drawable.ic_play_24dp)
+                    item.setIconCompat(R.drawable.ic_play_24dp)
                     item.setTitle(R.string.download_start)
                 }
                 menu?.applyTint(this)
             } else {
                 menu?.findItem(R.id.menu_download)?.let { item ->
-                    item.setIcon(R.drawable.ic_stop_black_24dp)
+                    item.setIconCompat(R.drawable.ic_stop_black_24dp)
                     item.setTitle(R.string.stop)
                 }
                 menu?.applyTint(this)
@@ -551,6 +552,16 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
                 AppConfig.exportCharset = alertBinding.editView.text?.toString() ?: "UTF-8"
             }
             cancelButton()
+        }
+    }
+
+    private fun sureCacheBook(action: () -> Unit) {
+        alert(R.string.draw) {
+            setMessage(R.string.sure_cache_book)
+            noButton()
+            yesButton {
+                action.invoke()
+            }
         }
     }
 

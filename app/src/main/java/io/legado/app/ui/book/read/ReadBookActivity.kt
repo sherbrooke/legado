@@ -60,6 +60,7 @@ import io.legado.app.lib.theme.accentColor
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadBook
 import io.legado.app.model.analyzeRule.AnalyzeRule
+import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setChapter
 import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setCoroutineContext
 import io.legado.app.model.localBook.EpubFile
 import io.legado.app.model.localBook.MobiFile
@@ -597,7 +598,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
 
             R.id.menu_cover_progress -> ReadBook.book?.let {
-                ReadBook.uploadProgress { toastOnUi(R.string.upload_book_success) }
+                ReadBook.uploadProgress(true) { toastOnUi(R.string.upload_book_success) }
             }
 
             R.id.menu_same_title_removed -> {
@@ -869,10 +870,11 @@ class ReadBookActivity : BaseReadBookActivity(),
                 ReadBook.bookSource?.bookSourceUrl?.let {
                     scopes.add(it)
                 }
+                val text = selectedText.lineSequence().map { it.trim() }.joinToString("\n")
                 replaceActivity.launch(
                     ReplaceEditActivity.startIntent(
                         this,
-                        pattern = selectedText,
+                        pattern = text,
                         scope = scopes.joinToString(";")
                     )
                 )
@@ -1289,7 +1291,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                     val analyzeRule = AnalyzeRule(book, source)
                     analyzeRule.setCoroutineContext(coroutineContext)
                     analyzeRule.setBaseUrl(chapter.url)
-                    analyzeRule.chapter = chapter
+                    analyzeRule.setChapter(chapter)
                     analyzeRule.evalJS(payAction).toString()
                 }.onSuccess(IO) {
                     if (it.isAbsUrl()) {
@@ -1327,8 +1329,20 @@ class ReadBookActivity : BaseReadBookActivity(),
                 ReadAloud.upReadAloudClass()
                 val scrollPageAnim = ReadBook.pageAnim() == 3
                 if (scrollPageAnim) {
-                    val startPos = binding.readView.getCurPagePosition()
-                    ReadBook.readAloud(startPos = startPos)
+                    val pos = binding.readView.getReadAloudPos()
+                    if (pos != null) {
+                        val (index, line) = pos
+                        if (ReadBook.durChapterIndex != index) {
+                            ReadBook.openChapter(index, line.chapterPosition, false) {
+                                ReadBook.readAloud(startPos = line.pagePosition)
+                            }
+                        } else {
+                            ReadBook.durChapterPos = line.chapterPosition
+                            ReadBook.readAloud(startPos = line.pagePosition)
+                        }
+                    } else {
+                        ReadBook.readAloud()
+                    }
                 } else {
                     ReadBook.readAloud()
                 }
@@ -1338,8 +1352,20 @@ class ReadBookActivity : BaseReadBookActivity(),
                 val scrollPageAnim = ReadBook.pageAnim() == 3
                 if (scrollPageAnim && pageChanged) {
                     pageChanged = false
-                    val startPos = binding.readView.getCurPagePosition()
-                    ReadBook.readAloud(startPos = startPos)
+                    val pos = binding.readView.getReadAloudPos()
+                    if (pos != null) {
+                        val (index, line) = pos
+                        if (ReadBook.durChapterIndex != index) {
+                            ReadBook.openChapter(index, line.chapterPosition, false) {
+                                ReadBook.readAloud(startPos = line.pagePosition)
+                            }
+                        } else {
+                            ReadBook.durChapterPos = line.chapterPosition
+                            ReadBook.readAloud(startPos = line.pagePosition)
+                        }
+                    } else {
+                        ReadBook.readAloud()
+                    }
                 } else {
                     ReadAloud.resume(this)
                 }
@@ -1642,6 +1668,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             lifecycleScope.launch(IO) {
                 if (BaseReadAloudService.isPlay()) {
                     ReadBook.curTextChapter?.let { textChapter ->
+                        ReadBook.durChapterPos = chapterStart
                         val pageIndex = ReadBook.durPageIndex
                         val aloudSpanStart = chapterStart - textChapter.getReadLength(pageIndex)
                         textChapter.getPage(pageIndex)

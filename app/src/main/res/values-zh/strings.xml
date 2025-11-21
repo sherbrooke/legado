@@ -1082,8 +1082,6 @@
     <string name="tip_divider_color">分隔线颜色</string>
     <string name="same_title_removed">移除重复标题</string>
     <string name="update_book_fail">更新失败</string>
-    <string name="rasing_book">养书</string>
-    <string name="online">在线</string>
     <string name="notification_permission_rationale">阅读需要发送通知来显示朗读控制和下载进度</string>
     <string name="webdav_after_local_restore_confirm">webDav书源比本地新,是否恢复</string>
     <string name="c_whitelist">白名单(contentWhitelist)</string>
@@ -1219,5 +1217,14 @@
     <string name="manga_color_filter">滤镜</string>
     <string name="hide_manga_title">隐藏漫画列表标题</string>
     <string name="refresh_explore">刷新发现</string>
-    <string name="switch_rasing">切换养书</string>
+    <string name="padding_display_cutouts">填充刘海区域</string>
+    <string name="system_media_control_compatibility_change">系统媒体控件兼容性更改</string>
+    <string name="system_media_control_compatibility_change_summary">当锁屏不显示系统媒体控件时可以尝试开启，比如oneui7.0或vivo等</string>
+    <string name="read_aloud_pause_resume">朗读暂停/继续</string>
+    <string name="manga_epaper">墨水屏</string>
+    <string name="manga_epaper_stting">墨水屏设置</string>
+    <string name="manga_epaper_value">阈值</string>
+    <string name="disable_horizontal_animation">禁用水平滚动动画</string>
+    <string name="enable_manga_gray">开启图片灰色</string>
+    <string name="sure_cache_book">是否确认开始缓存？</string>
 </resources>

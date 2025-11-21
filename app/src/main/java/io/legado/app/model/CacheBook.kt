@@ -11,23 +11,38 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.ConcurrentException
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.isLocal
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.coroutine.CompositeCoroutine
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.service.CacheBookService
+import io.legado.app.utils.onEachParallel
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.startService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 
 object CacheBook {
 
     val cacheBookMap = ConcurrentHashMap<String, CacheBookModel>()
+
+    private val workingState = MutableStateFlow(true)
+    private val mutex = Mutex()
 
     @Synchronized
     fun getOrCreate(bookUrl: String): CacheBookModel? {
@@ -96,16 +111,42 @@ object CacheBook {
         }
     }
 
-    fun clear() {
+    fun close() {
+        cacheBookMap.forEach { it.value.stop() }
+        cacheBookMap.clear()
         successDownloadSet.clear()
         errorDownloadMap.clear()
     }
 
-    fun close() {
-        cacheBookMap.forEach { it.value.stop() }
-        cacheBookMap.clear()
-        clear()
+    fun setWorkingState(value: Boolean) {
+        workingState.value = value
     }
+
+    suspend fun startProcessJob(context: CoroutineContext) = mutex.withLock {
+        setWorkingState(true)
+        flow {
+            while (currentCoroutineContext().isActive && cacheBookMap.isNotEmpty()) {
+                var emitted = false
+
+                cacheBookMap.forEach { (_, model) ->
+                    if (!model.isLoading()) {
+                        emit(model)
+                        emitted = true
+                    }
+                    workingState.first { it }
+                }
+
+                if (!emitted) {
+                    delay(1000)
+                }
+            }
+        }.onEachParallel(AppConfig.threadCount) {
+            coroutineScope {
+                it.download(this, context)
+            }
+        }.collect()
+    }
+
 
     val downloadSummary: String
         get() {
@@ -114,11 +155,12 @@ object CacheBook {
 
     val isRun: Boolean
         get() {
-            var isRun = false
             cacheBookMap.forEach {
-                isRun = isRun || it.value.isRun()
+                if (it.value.isRun()) {
+                    return true
+                }
             }
-            return isRun
+            return false
         }
 
     private val waitCount: Int
@@ -146,8 +188,10 @@ object CacheBook {
 
         private val waitDownloadSet = linkedSetOf<Int>()
         private val onDownloadSet = linkedSetOf<Int>()
+        private val tasks = CompositeCoroutine()
         private var isStopped = false
         private var waitingRetry = false
+        private var isLoading = false
 
         val waitCount get() = waitDownloadSet.size
         val onDownloadCount get() = onDownloadSet.size
@@ -158,7 +202,7 @@ object CacheBook {
 
         @Synchronized
         fun isRun(): Boolean {
-            return waitDownloadSet.size > 0 || onDownloadSet.size > 0
+            return waitDownloadSet.isNotEmpty() || onDownloadSet.isNotEmpty() || isLoading
         }
 
         @Synchronized
@@ -167,9 +211,21 @@ object CacheBook {
         }
 
         @Synchronized
+        fun isLoading(): Boolean {
+            return isLoading
+        }
+
+        @Synchronized
+        fun setLoading() {
+            isLoading = true
+        }
+
+        @Synchronized
         fun stop() {
             waitDownloadSet.clear()
+            tasks.clear()
             isStopped = true
+            isLoading = false
             postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
         }
 
@@ -182,6 +238,7 @@ object CacheBook {
                 }
             }
             cacheBookMap[book.bookUrl] = this
+            isLoading = false
             postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
         }
 
@@ -244,7 +301,7 @@ object CacheBook {
             postEvent(EventBus.UP_DOWNLOAD, book.bookUrl)
             val chapterIndex = waitDownloadSet.firstOrNull()
             if (chapterIndex == null) {
-                if (onDownloadSet.isEmpty()) {
+                if (!isLoading && onDownloadSet.isEmpty()) {
                     cacheBookMap.remove(book.bookUrl)
                 }
                 return
@@ -285,6 +342,8 @@ object CacheBook {
                     onCancel(chapterIndex)
                 }.onFinally {
                     onFinally()
+                }.let {
+                    tasks.add(it)
                 }
                 return
             }
@@ -309,6 +368,8 @@ object CacheBook {
                 onCancel(chapterIndex)
             }.onFinally {
                 onFinally()
+            }.apply {
+                tasks.add(this)
             }.start()
         }
 

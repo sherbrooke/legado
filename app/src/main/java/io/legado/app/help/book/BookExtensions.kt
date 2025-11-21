@@ -14,6 +14,7 @@ import io.legado.app.data.entities.BaseBook
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.RuleBigDataHelp
 import io.legado.app.help.config.AppConfig
 import io.legado.app.model.localBook.LocalBook
 import io.legado.app.utils.FileDoc
@@ -23,6 +24,7 @@ import io.legado.app.utils.exists
 import io.legado.app.utils.find
 import io.legado.app.utils.inputStream
 import io.legado.app.utils.isUri
+import io.legado.app.utils.normalizeFileName
 import io.legado.app.utils.toastOnUi
 import splitties.init.appCtx
 import java.io.File
@@ -268,11 +270,16 @@ fun Book.updateTo(newBook: Book): Book {
     newBook.canUpdate = canUpdate
     newBook.readConfig = readConfig
     val variableMap = variableMap.toMutableMap()
-    variableMap.putAll(newBook.variableMap)
-    newBook.variableMap.clear()
+    variableMap.keys.removeIf {
+        newBook.hasVariable(it)
+    }
     newBook.variableMap.putAll(variableMap)
-    newBook.variable = GSON.toJson(variableMap)
+    newBook.variable = GSON.toJson(newBook.variableMap)
     return newBook
+}
+
+fun Book.hasVariable(key: String): Boolean {
+    return variableMap.contains(key) || RuleBigDataHelp.hasBookVariable(bookUrl, key)
 }
 
 fun Book.getFolderNameNoCache(): String {
@@ -340,7 +347,7 @@ fun Book.getExportFileName(
         RhinoScriptEngine.eval(jsStr, bindings).toString() + "." + suffix
     }.onFailure {
         AppLog.put("导出书名规则错误,使用默认规则\n${it.localizedMessage}", it)
-    }.getOrDefault(default)
+    }.getOrDefault(default).normalizeFileName()
 }
 
 // 根据当前日期计算章节总数

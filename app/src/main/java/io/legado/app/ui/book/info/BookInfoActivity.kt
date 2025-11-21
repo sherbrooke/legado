@@ -593,7 +593,9 @@ class BookInfoActivity :
             viewModel.bookSource?.getKey() -> viewModel.bookSource?.setVariable(variable)
             viewModel.bookData.value?.bookUrl -> viewModel.bookData.value?.let {
                 it.putCustomVariable(variable)
-                viewModel.saveBook(it)
+                if (viewModel.inBookshelf) {
+                    viewModel.saveBook(it)
+                }
             }
         }
     }
@@ -736,7 +738,7 @@ class BookInfoActivity :
             else -> readBookResult.launch(
                 Intent(
                     this,
-                    if (book.isImage && AppConfig.showMangaUi) ReadMangaActivity::class.java
+                    if (!book.isLocal && book.isImage && AppConfig.showMangaUi) ReadMangaActivity::class.java
                     else ReadBookActivity::class.java
                 )
                     .putExtra("bookUrl", book.bookUrl)
