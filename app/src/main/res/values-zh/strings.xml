@@ -1227,4 +1227,9 @@
     <string name="disable_horizontal_animation">禁用水平滚动动画</string>
     <string name="enable_manga_gray">开启图片灰色</string>
     <string name="sure_cache_book">是否确认开始缓存？</string>
+    <string name="switch_rasing">切换养书</string>
+    <string name="rasing_book">养书</string>
+    <string name="online">在线</string>
+    <string name="play_mode">播放模式</string>
+
 </resources>
